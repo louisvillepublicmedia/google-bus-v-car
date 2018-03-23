@@ -32,8 +32,8 @@
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script>
-        var map, origin, destination;
-
+        var map, carIcon, busIcon, origin, destination;
+        
         function initialize() {
 
             map = new google.maps.Map(document.getElementById("map"), {
@@ -41,6 +41,10 @@
               zoom: 11,
               mapTypeId: google.maps.MapTypeId.ROADMAP
             });
+            
+            carIcon = new google.maps.MarkerImage('http://maps.google.com/mapfiles/ms/micons/blue.png');
+            busIcon = new google.maps.MarkerImage('http://maps.google.com/mapfiles/ms/micons/red.png');
+
 
             // Create the search box and link it to the UI element.
             origin = document.getElementById('origin');
@@ -67,61 +71,55 @@
                 var originPlaces = originSearchBox.getPlaces();
                 var destinationPlaces = destinationSearchBox.getPlaces();
             });
-            
-            //var markers = [];
-            //// Listen for the event fired when the user selects a prediction and retrieve
-            //// more details for that place.
-            //searchBox.addListener('places_changed', function() {
-            //    var places = searchBox.getPlaces();
-            //
-            //    if (places.length == 0) {
-            //        return;
-            //    }
-            //
-            //    // Clear out the old markers.
-            //    markers.forEach(function(marker) {
-            //        marker.setMap(null);
-            //    });
-            //    markers = [];
-            //
-            //    // For each place, get the icon, name and location.
-            //    var bounds = new google.maps.LatLngBounds();
-            //    
-            //    places.forEach(function(place) {
-            //        if (!place.geometry) {
-            //            console.log("Returned place contains no geometry");
-            //            return;
-            //        }
-            //        
-            //        var icon = {
-            //            url: place.icon,
-            //            size: new google.maps.Size(71, 71),
-            //            origin: new google.maps.Point(0, 0),
-            //            anchor: new google.maps.Point(17, 34),
-            //            scaledSize: new google.maps.Size(25, 25)
-            //        };
-            //
-            //        // Create a marker for each place.
-            //        markers.push(new google.maps.Marker({
-            //            map: map,
-            //            icon: icon,
-            //            title: place.name,
-            //            position: place.geometry.location
-            //        }));
-            //
-            //        if (place.geometry.viewport) {
-            //            // Only geocodes have viewport.
-            //            bounds.union(place.geometry.viewport);
-            //        } else {
-            //            bounds.extend(place.geometry.location);
-            //        }
-            //    });
-            //    map.fitBounds(bounds);
-            //});            
+                
         }
         
-        function drawDrivingRoute(){
-            var markers = [];
+        function drawDrivingRoute(coords, bounds){
+            var i, route, marker;
+                        
+            route = new google.maps.Polyline({
+                path: [],
+                geodesic: true,
+                strokeColor: '#3B9EFA',
+                strokeOpacity: 1.0,
+                strokeWeight: 2,
+                editable: false,
+                map:map
+            });
+            
+            marker = new google.maps.Marker({map:map, icon:carIcon});
+            
+            for(i = 0; i < coords.length; i++){
+                setTimeout(function(coords){
+                    route.getPath().push(coords);
+                    marker.setPosition(coords);
+                }, 100 * i, coords[i]);
+            }
+        };
+        
+        function drawTransitRoute(coords, bounds){
+            var i, route, marker;
+            
+            map.fitBounds(bounds);
+            
+            route = new google.maps.Polyline({
+                path: [],
+                geodesic: true,
+                strokeColor: '#FA453B',
+                strokeOpacity: 1.0,
+                strokeWeight: 2,
+                editable: false,
+                map:map
+            });
+            
+            marker = new google.maps.Marker({map:map, icon:busIcon});
+            
+            for(i = 0; i < coords.length; i++){
+                setTimeout(function(coords){
+                    route.getPath().push(coords);
+                    marker.setPosition(coords);
+                }, 100 * i, coords[i]);
+            }
         };
         
         function calculateRoute(start, end){
@@ -141,22 +139,25 @@
                 travelMode: 'TRANSIT'
             };
             
+            directionsService.route(busRequest, function(result, status) {
+                if (status == 'OK') {
+                    directionsDisplay.setDirections(result);
+                    busCoordinates = result.routes[0].overview_path;
+                    busBounds = result.routes[0].bounds;
+                    drawTransitRoute(busCoordinates, busBounds);
+                }
+            });
+            
             directionsService.route(carRequest, function(result, status) {
                 
                 if (status == 'OK') {
                     directionsDisplay.setDirections(result);
                     drivingCoordinates = result.routes[0].overview_path;
-                    console.log(drivingCoordinates);
+                    drivingBounds = result.routes[0].bounds;
+                    drawDrivingRoute(drivingCoordinates, drivingBounds);
                 }
             });
             
-            directionsService.route(busRequest, function(result, status) {
-                if (status == 'OK') {
-                    directionsDisplay.setDirections(result);
-                    busCoordinates = result.routes[0].overview_path;
-                    console.log(busCoordinates);
-                }
-            });
         };
         
         $('#routeCalc').click(function(event){
