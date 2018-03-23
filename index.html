@@ -17,6 +17,9 @@
             padding:20px;
             background:rgba(255,255,255,.6);
         }
+        input[type=text]{
+            width:300px;
+        }
     </style>
 </head>
 <body>
@@ -74,10 +77,60 @@
                 
         }
         
-        function drawDrivingRoute(coords, bounds){
-            var i, route, marker;
-                        
-            route = new google.maps.Polyline({
+        //function drawDrivingRoute(coords, bounds){
+        //    var i, route, marker;
+        //                
+        //    route = new google.maps.Polyline({
+        //        path: [],
+        //        geodesic: true,
+        //        strokeColor: '#3B9EFA',
+        //        strokeOpacity: 1.0,
+        //        strokeWeight: 2,
+        //        editable: false,
+        //        map:map
+        //    });
+        //    
+        //    marker = new google.maps.Marker({map:map, icon:carIcon});
+        //    
+        //    for(i = 0; i < coords.length; i++){
+        //        setTimeout(function(coords){
+        //            route.getPath().push(coords);
+        //            marker.setPosition(coords);
+        //        }, 100 * i, coords[i]);
+        //    }
+        //};
+        //
+        //function drawTransitRoute(coords, bounds){
+        //    var i, route, marker;
+        //    
+        //    map.fitBounds(bounds);
+        //    
+        //    route = new google.maps.Polyline({
+        //        path: [],
+        //        geodesic: true,
+        //        strokeColor: '#FA453B',
+        //        strokeOpacity: 1.0,
+        //        strokeWeight: 2,
+        //        editable: false,
+        //        map:map
+        //    });
+        //    
+        //    marker = new google.maps.Marker({map:map, icon:busIcon});
+        //    
+        //    for(i = 0; i < coords.length; i++){
+        //        setTimeout(function(coords){
+        //            route.getPath().push(coords);
+        //            marker.setPosition(coords);
+        //        }, 100 * i, coords[i]);
+        //    }
+        //};
+        
+        function drawRoutes(carCoordinates, busCoordinates, carInterval, busInterval, busBounds){
+            var ic, ib, carRoute, busRoute, carMarker, busMarker;
+            
+            map.fitBounds(busBounds);
+            
+            carRoute = new google.maps.Polyline({
                 path: [],
                 geodesic: true,
                 strokeColor: '#3B9EFA',
@@ -87,22 +140,7 @@
                 map:map
             });
             
-            marker = new google.maps.Marker({map:map, icon:carIcon});
-            
-            for(i = 0; i < coords.length; i++){
-                setTimeout(function(coords){
-                    route.getPath().push(coords);
-                    marker.setPosition(coords);
-                }, 100 * i, coords[i]);
-            }
-        };
-        
-        function drawTransitRoute(coords, bounds){
-            var i, route, marker;
-            
-            map.fitBounds(bounds);
-            
-            route = new google.maps.Polyline({
+            busRoute = new google.maps.Polyline({
                 path: [],
                 geodesic: true,
                 strokeColor: '#FA453B',
@@ -112,13 +150,21 @@
                 map:map
             });
             
-            marker = new google.maps.Marker({map:map, icon:busIcon});
+            carMarker = new google.maps.Marker({map:map, icon:carIcon});
+            busMarker = new google.maps.Marker({map:map, icon:busIcon});
             
-            for(i = 0; i < coords.length; i++){
-                setTimeout(function(coords){
-                    route.getPath().push(coords);
-                    marker.setPosition(coords);
-                }, 100 * i, coords[i]);
+            for(ic = 0; ic < carCoordinates.length; ic++){
+                setTimeout(function(carCoordinates){
+                    carRoute.getPath().push(carCoordinates);
+                    carMarker.setPosition(carCoordinates);
+                }, carInterval * ic, carCoordinates[ic]);
+            }
+            
+            for(ib = 0; ib < busCoordinates.length; ib++){
+                setTimeout(function(busCoordinates){
+                    busRoute.getPath().push(busCoordinates);
+                    busMarker.setPosition(busCoordinates);
+                }, busInterval * ib, busCoordinates[ib]);
             }
         };
         
@@ -139,24 +185,49 @@
                 travelMode: 'TRANSIT'
             };
             
-            directionsService.route(busRequest, function(result, status) {
-                if (status == 'OK') {
-                    directionsDisplay.setDirections(result);
-                    busCoordinates = result.routes[0].overview_path;
-                    busBounds = result.routes[0].bounds;
-                    drawTransitRoute(busCoordinates, busBounds);
-                }
-            });
+            function carRoute(busBounds, busCoordinates, busDuration){
+                var carCoordinates, carDuration, carCoorLen, busCoorLen, busToCarRatio, carCompletion, busCompletion, carInterval, busInterval;
+                directionsService.route(carRequest, function(result, status) {
+                    if (status == 'OK') {
+                        directionsDisplay.setDirections(result);
+                        
+                        carCoordinates = result.routes[0].overview_path;
+                        carDuration = result.routes[0].legs[0].duration['value'];
+                        
+                        carCoorLen = carCoordinates.length;
+                        busCoorLen = busCoordinates.length;
+                        
+                        busToCarRatio = busDuration / carDuration;
+                        
+                        carCompletion = 10000; //in milliseconds
+                        busCompletion = carCompletion * busToCarRatio;
+                        
+                        carInterval = carCompletion / carCoorLen;
+                        busInterval = busCompletion / busCoorLen;
+                        
+                        console.log('busInterval', busInterval);
+                        console.log('carInterval', carInterval);
+                                                
+                        drawRoutes(carCoordinates, busCoordinates, carInterval, busInterval, busBounds);
+                    }
+                });
+            }
             
-            directionsService.route(carRequest, function(result, status) {
-                
-                if (status == 'OK') {
-                    directionsDisplay.setDirections(result);
-                    drivingCoordinates = result.routes[0].overview_path;
-                    drivingBounds = result.routes[0].bounds;
-                    drawDrivingRoute(drivingCoordinates, drivingBounds);
-                }
-            });
+            function busRoute(){
+                directionsService.route(busRequest, function(result, status) {
+                    if (status == 'OK') {
+                        directionsDisplay.setDirections(result);
+                        
+                        busBounds = result.routes[0].bounds;
+                        busCoordinates = result.routes[0].overview_path;
+                        busDuration = result.routes[0].legs[0].duration['value'];
+                        
+                        carRoute(busBounds, busCoordinates, busDuration);
+                    }
+                });
+            }
+            
+            busRoute();
             
         };
         
