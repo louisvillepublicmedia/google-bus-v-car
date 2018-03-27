@@ -8,30 +8,65 @@
         html, body, #map {
             height: 100%;
             margin: 0px;
-            padding: 0px
+            padding: 0px;
+            font-family: "Helvetica Neue", Helvetica, sans-serif;
+        }
+        h2{
+            margin:0 0 .5em 0;
         }
         #map-overlay{
             position:absolute;
             top: 50px;
             left: 10px;
             padding:20px;
-            background:rgba(255,255,255,.6);
+            background:rgba(255,255,255,0.8);
         }
         input[type=text]{
             width:300px;
+            height:20px;
+            margin-bottom:.75em;
+        }
+        
+        .car-label,
+        .bus-label{
+            color:#ffffff;
+            padding:0.125em .25em;
+            margin-right:.25em;
+        }
+        
+        .car-label{
+            background:#3B9EFA;
+        }
+        
+        .bus-label{
+            background:#FA453B;
+        }
+        
+        #routes{
+            margin:1em 0 0 0;
+            padding:1em 0 0 0;
+            border-top:2px solid #ffffff;
+        }
+        
+        #routes div{
+            margin-bottom:1em;
+            font-weight: 200;
         }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <div id="map-overlay">
+        <h2>Get Directions:</h2>
         <form>
-            Origin:
-            <input type="text" id="origin" class="controls" placeholder="Search Box"><br>
-            Destination:
-            <input type="text" name="destination" id="destination"><br>
+            <input type="text" id="origin" class="controls" placeholder="Starting point..."><br>
+            <input type="text" name="destination" id="destination" placeholder="Ending point..."><br>
             <button id="routeCalc">Get Route</button>
         </form>
+        <div id="routes">
+            <div id="carRouteDetails"></div>
+            <div id="busRouteDetails"></div>
+        </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script>
@@ -54,10 +89,7 @@
             destination = document.getElementById('destination');
             
             var originSearchBox = new google.maps.places.SearchBox(origin);
-            //map.controls[google.maps.ControlPosition.TOP_LEFT].push(origin);
-            
             var destinationSearchBox = new google.maps.places.SearchBox(destination);
-            //map.controls[google.maps.ControlPosition.TOP_LEFT].push(destination);
             
             // Bias the SearchBox results towards current map's viewport.
             map.addListener('bounds_changed', function() {
@@ -77,53 +109,6 @@
                 
         }
         
-        //function drawDrivingRoute(coords, bounds){
-        //    var i, route, marker;
-        //                
-        //    route = new google.maps.Polyline({
-        //        path: [],
-        //        geodesic: true,
-        //        strokeColor: '#3B9EFA',
-        //        strokeOpacity: 1.0,
-        //        strokeWeight: 2,
-        //        editable: false,
-        //        map:map
-        //    });
-        //    
-        //    marker = new google.maps.Marker({map:map, icon:carIcon});
-        //    
-        //    for(i = 0; i < coords.length; i++){
-        //        setTimeout(function(coords){
-        //            route.getPath().push(coords);
-        //            marker.setPosition(coords);
-        //        }, 100 * i, coords[i]);
-        //    }
-        //};
-        //
-        //function drawTransitRoute(coords, bounds){
-        //    var i, route, marker;
-        //    
-        //    map.fitBounds(bounds);
-        //    
-        //    route = new google.maps.Polyline({
-        //        path: [],
-        //        geodesic: true,
-        //        strokeColor: '#FA453B',
-        //        strokeOpacity: 1.0,
-        //        strokeWeight: 2,
-        //        editable: false,
-        //        map:map
-        //    });
-        //    
-        //    marker = new google.maps.Marker({map:map, icon:busIcon});
-        //    
-        //    for(i = 0; i < coords.length; i++){
-        //        setTimeout(function(coords){
-        //            route.getPath().push(coords);
-        //            marker.setPosition(coords);
-        //        }, 100 * i, coords[i]);
-        //    }
-        //};
         
         function drawRoutes(carCoordinates, busCoordinates, carInterval, busInterval, busBounds){
             var ic, ib, carRoute, busRoute, carMarker, busMarker;
@@ -185,14 +170,17 @@
                 travelMode: 'TRANSIT'
             };
             
-            function carRoute(busBounds, busCoordinates, busDuration){
+            function carRoute(busBounds, busCoordinates, busDuration, busDurationHR, busDistanceHR){
                 var carCoordinates, carDuration, carCoorLen, busCoorLen, busToCarRatio, carCompletion, busCompletion, carInterval, busInterval;
                 directionsService.route(carRequest, function(result, status) {
                     if (status == 'OK') {
                         directionsDisplay.setDirections(result);
                         
                         carCoordinates = result.routes[0].overview_path;
+                        
                         carDuration = result.routes[0].legs[0].duration['value'];
+                        carDurationHR = result.routes[0].legs[0].duration['text'];                        
+                        carDistanceHR = result.routes[0].legs[0].distance['text'];
                         
                         carCoorLen = carCoordinates.length;
                         busCoorLen = busCoordinates.length;
@@ -205,10 +193,12 @@
                         carInterval = carCompletion / carCoorLen;
                         busInterval = busCompletion / busCoorLen;
                         
-                        console.log('busInterval', busInterval);
-                        console.log('carInterval', carInterval);
+                        console.log(result.routes[0]);
                                                 
                         drawRoutes(carCoordinates, busCoordinates, carInterval, busInterval, busBounds);
+                        
+                        $('#carRouteDetails').append('<span class="car-label">By car:</span>' + carDurationHR + ' (' + carDistanceHR + ')');
+                        $('#busRouteDetails').append('<span class="bus-label">By bus:</span>' + busDurationHR + ' (' + busDistanceHR + ')');
                     }
                 });
             }
@@ -220,9 +210,12 @@
                         
                         busBounds = result.routes[0].bounds;
                         busCoordinates = result.routes[0].overview_path;
-                        busDuration = result.routes[0].legs[0].duration['value'];
                         
-                        carRoute(busBounds, busCoordinates, busDuration);
+                        busDuration = result.routes[0].legs[0].duration['value'];
+                        busDurationHR = result.routes[0].legs[0].duration['text'];
+                        busDistanceHR = result.routes[0].legs[0].distance['text']
+                        
+                        carRoute(busBounds, busCoordinates, busDuration, busDurationHR, busDistanceHR);
                     }
                 });
             }
