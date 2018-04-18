@@ -5,11 +5,15 @@
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
     <meta charset="utf-8">
     <style>
-        html, body, #map {
-            height: 100%;
+        html, body{
             margin: 0px;
             padding: 0px;
             font-family: "Helvetica Neue", Helvetica, sans-serif;
+        }
+        #map {
+            height:600px;
+            margin: 0px;
+            padding: 0px;
         }
         h2{
             margin:0 0 .5em 0;
@@ -22,7 +26,7 @@
             background:rgba(255,255,255,0.8);
         }
         input[type=text]{
-            width:300px;
+            width:250px;
             height:20px;
             margin-bottom:.75em;
         }
@@ -55,6 +59,7 @@
     </style>
 </head>
 <body>
+    
     <div id="map"></div>
     <div id="map-overlay">
         <h2>Get Directions:</h2>
@@ -69,8 +74,9 @@
         </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="../../js/pym.v1.min.js"></script>
     <script>
-        var map, carIcon, busIcon, origin, destination;
+        var map, carIcon, busIcon, origin, destination, ic, ib, carMarker, busMarker, carRoute, busRoute;
         
         function initialize() {
 
@@ -111,7 +117,18 @@
         
         
         function drawRoutes(carCoordinates, busCoordinates, carInterval, busInterval, busBounds){
-            var ic, ib, carRoute, busRoute, carMarker, busMarker;
+            
+            if(carRoute != null){
+                carRoute.setMap(null);
+                busRoute.setMap(null);
+                carMarker.setMap(null);
+                busMarker.setMap(null);
+            }
+            
+            carRoute = null;
+            busRoute = null;
+            carMarker = null;
+            busMarker = null;
             
             map.fitBounds(busBounds);
             
@@ -134,6 +151,7 @@
                 editable: false,
                 map:map
             });
+            
             
             carMarker = new google.maps.Marker({map:map, icon:carIcon});
             busMarker = new google.maps.Marker({map:map, icon:busIcon});
@@ -192,10 +210,11 @@
                         
                         carInterval = carCompletion / carCoorLen;
                         busInterval = busCompletion / busCoorLen;
-                        
-                        console.log(result.routes[0]);
-                                                
+                                                                        
                         drawRoutes(carCoordinates, busCoordinates, carInterval, busInterval, busBounds);
+                        
+                        $('#carRouteDetails').empty();
+                        $('#busRouteDetails').empty();
                         
                         $('#carRouteDetails').append('<span class="car-label">By car:</span>' + carDurationHR + ' (' + carDistanceHR + ')');
                         $('#busRouteDetails').append('<span class="bus-label">By bus:</span>' + busDurationHR + ' (' + busDistanceHR + ')');
@@ -234,6 +253,7 @@
             return false;
         });
         
+        const pymChild = new pym.Child({ polling: 100 });
     </script>
     <script async defer src="https://maps.googleapis.com/maps/api/js?v=3.exp&amp;libraries=geometry,places&key=AIzaSyCYTUE0hvNPcioxBbCGMBwVNJzUjswdou0&callback=initialize"></script>
 </body>
