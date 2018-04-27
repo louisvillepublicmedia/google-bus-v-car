@@ -5,61 +5,65 @@
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
     <meta charset="utf-8">
     <style>
-        html, body{
+        html,
+        body {
             margin: 0px;
             padding: 0px;
             font-family: "Helvetica Neue", Helvetica, sans-serif;
         }
+
         #map {
             height:600px;
             margin: 0px;
             padding: 0px;
         }
-        h2{
+
+        h2 {
             margin:0 0 .5em 0;
         }
-        #map-overlay{
+
+        #map-overlay {
             position:absolute;
             top: 50px;
             left: 10px;
             padding:20px;
             background:rgba(255,255,255,0.8);
         }
-        input[type=text]{
+
+        input[type=text] {
             width:250px;
             height:20px;
             margin-bottom:.75em;
         }
-        
+
         .car-label,
-        .bus-label{
+        .bus-label {
             color:#ffffff;
             padding:0.125em .25em;
             margin-right:.25em;
         }
-        
-        .car-label{
+
+        .car-label {
             background:#3B9EFA;
         }
-        
-        .bus-label{
+
+        .bus-label {
             background:#FA453B;
         }
-        
+
         #routes{
             margin:1em 0 0 0;
             padding:1em 0 0 0;
             border-top:2px solid #ffffff;
         }
-        
-        #routes div{
+
+        #routes div {
             margin-bottom:1em;
             font-weight: 200;
         }
     </style>
 </head>
 <body>
-    
     <div id="map"></div>
     <div id="map-overlay">
         <h2>Get Directions:</h2>
@@ -73,65 +77,59 @@
             <div id="busRouteDetails"></div>
         </div>
     </div>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-    <script src="../../js/pym.v1.min.js"></script>
+    <script src="https://pym.nprapps.org/pym.v1.min.js"></script>
     <script>
-        var map, carIcon, busIcon, origin, destination, ic, ib, carMarker, busMarker, carRoute, busRoute;
-        
-        function initialize() {
+        let map, carIcon, busIcon, origin, destination, ic, ib, carMarker, busMarker, carRoute, busRoute;
 
+        function initialize() {
             map = new google.maps.Map(document.getElementById("map"), {
               center: {lat:38.247907, lng:-85.759993},
               zoom: 11,
               mapTypeId: google.maps.MapTypeId.ROADMAP
             });
-            
+
             carIcon = new google.maps.MarkerImage('http://maps.google.com/mapfiles/ms/micons/blue.png');
             busIcon = new google.maps.MarkerImage('http://maps.google.com/mapfiles/ms/micons/red.png');
-
 
             // Create the search box and link it to the UI element.
             origin = document.getElementById('origin');
             destination = document.getElementById('destination');
-            
-            var originSearchBox = new google.maps.places.SearchBox(origin);
-            var destinationSearchBox = new google.maps.places.SearchBox(destination);
-            
+
+            const originSearchBox = new google.maps.places.SearchBox(origin);
+            const destinationSearchBox = new google.maps.places.SearchBox(destination);
+
             // Bias the SearchBox results towards current map's viewport.
             map.addListener('bounds_changed', function() {
               originSearchBox.setBounds(map.getBounds());
               destinationSearchBox.setBounds(map.getBounds());
             });
-            
+
             originSearchBox.addListener('places_changed', function() {
-                var originPlaces = originSearchBox.getPlaces();
-                var destinationPlaces = destinationSearchBox.getPlaces();
+                const originPlaces = originSearchBox.getPlaces();
+                const destinationPlaces = destinationSearchBox.getPlaces();
             });
-            
+
             destinationSearchBox.addListener('places_changed', function() {
-                var originPlaces = originSearchBox.getPlaces();
-                var destinationPlaces = destinationSearchBox.getPlaces();
+                const originPlaces = originSearchBox.getPlaces();
+                const destinationPlaces = destinationSearchBox.getPlaces();
             });
-                
         }
-        
-        
+
         function drawRoutes(carCoordinates, busCoordinates, carInterval, busInterval, busBounds){
-            
             if(carRoute != null){
                 carRoute.setMap(null);
                 busRoute.setMap(null);
                 carMarker.setMap(null);
                 busMarker.setMap(null);
             }
-            
+
             carRoute = null;
             busRoute = null;
             carMarker = null;
             busMarker = null;
-            
+
             map.fitBounds(busBounds);
-            
+
             carRoute = new google.maps.Polyline({
                 path: [],
                 geodesic: true,
@@ -141,7 +139,7 @@
                 editable: false,
                 map:map
             });
-            
+
             busRoute = new google.maps.Polyline({
                 path: [],
                 geodesic: true,
@@ -151,18 +149,17 @@
                 editable: false,
                 map:map
             });
-            
-            
+
             carMarker = new google.maps.Marker({map:map, icon:carIcon});
             busMarker = new google.maps.Marker({map:map, icon:busIcon});
-            
+
             for(ic = 0; ic < carCoordinates.length; ic++){
                 setTimeout(function(carCoordinates){
                     carRoute.getPath().push(carCoordinates);
                     carMarker.setPosition(carCoordinates);
                 }, carInterval * ic, carCoordinates[ic]);
             }
-            
+
             for(ib = 0; ib < busCoordinates.length; ib++){
                 setTimeout(function(busCoordinates){
                     busRoute.getPath().push(busCoordinates);
@@ -170,89 +167,102 @@
                 }, busInterval * ib, busCoordinates[ib]);
             }
         };
-        
+
         function calculateRoute(start, end){
-            
-            var directionsService = new google.maps.DirectionsService();
-            var directionsDisplay = new google.maps.DirectionsRenderer();
-            
-            var carRequest = {
+            const directionsService = new google.maps.DirectionsService();
+            const directionsDisplay = new google.maps.DirectionsRenderer();
+
+            const carRequest = {
                 origin: start,
                 destination: end,
                 travelMode: 'DRIVING'
             };
-            
-            var busRequest = {
+
+            const busRequest = {
                 origin: start,
                 destination: end,
                 travelMode: 'TRANSIT'
             };
-            
+
             function carRoute(busBounds, busCoordinates, busDuration, busDurationHR, busDistanceHR){
-                var carCoordinates, carDuration, carCoorLen, busCoorLen, busToCarRatio, carCompletion, busCompletion, carInterval, busInterval;
+                let carCoordinates, carDuration, carCoorLen, busCoorLen, busToCarRatio, carCompletion, busCompletion, carInterval, busInterval;
+
                 directionsService.route(carRequest, function(result, status) {
                     if (status == 'OK') {
                         directionsDisplay.setDirections(result);
-                        
+
                         carCoordinates = result.routes[0].overview_path;
-                        
+
                         carDuration = result.routes[0].legs[0].duration['value'];
-                        carDurationHR = result.routes[0].legs[0].duration['text'];                        
+                        carDurationHR = result.routes[0].legs[0].duration['text'];
                         carDistanceHR = result.routes[0].legs[0].distance['text'];
-                        
+
                         carCoorLen = carCoordinates.length;
                         busCoorLen = busCoordinates.length;
-                        
+
                         busToCarRatio = busDuration / carDuration;
-                        
+
                         carCompletion = 10000; //in milliseconds
                         busCompletion = carCompletion * busToCarRatio;
-                        
+
                         carInterval = carCompletion / carCoorLen;
                         busInterval = busCompletion / busCoorLen;
-                                                                        
+
                         drawRoutes(carCoordinates, busCoordinates, carInterval, busInterval, busBounds);
-                        
-                        $('#carRouteDetails').empty();
-                        $('#busRouteDetails').empty();
-                        
-                        $('#carRouteDetails').append('<span class="car-label">By car:</span>' + carDurationHR + ' (' + carDistanceHR + ')');
-                        $('#busRouteDetails').append('<span class="bus-label">By bus:</span>' + busDurationHR + ' (' + busDistanceHR + ')');
+
+                        const carRouteDetails = document.getElementById('carRouteDetails');
+                        const busRouteDetails = document.getElementById('busRouteDetails');
+
+                        const carRouteDetailsSpan = document.createElement('span');
+                        carRouteDetailsSpan.classList.add('car-label');
+                        carRouteDetailsSpan.textContent = 'By car:';
+
+                        const carRouteDetailsText = document.createTextNode(`${carDurationHR} (${carDistanceHR})`);
+
+                        carRouteDetails.appendChild(carRouteDetailsSpan);
+                        carRouteDetails.appendChild(carRouteDetailsText);
+
+                        const busRouteDetailsSpan = document.createElement('span');
+                        busRouteDetailsSpan.classList.add('bus-label');
+                        busRouteDetailsSpan.textContent = 'By bus:';
+
+                        const busRouteDetailsText = document.createTextNode(`${busDurationHR} (${busDistanceHR})`);
+
+                        busRouteDetails.appendChild(busRouteDetailsSpan);
+                        busRouteDetails.appendChild(busRouteDetailsText);
                     }
                 });
             }
-            
+
             function busRoute(){
                 directionsService.route(busRequest, function(result, status) {
                     if (status == 'OK') {
                         directionsDisplay.setDirections(result);
-                        
+
                         busBounds = result.routes[0].bounds;
                         busCoordinates = result.routes[0].overview_path;
-                        
+
                         busDuration = result.routes[0].legs[0].duration['value'];
                         busDurationHR = result.routes[0].legs[0].duration['text'];
                         busDistanceHR = result.routes[0].legs[0].distance['text']
-                        
+
                         carRoute(busBounds, busCoordinates, busDuration, busDurationHR, busDistanceHR);
                     }
                 });
             }
-            
+
             busRoute();
-            
         };
-        
-        $('#routeCalc').click(function(event){
-            var start = origin.value;
-            var end = destination.value;
-            
+
+        document.getElementById('routeCalc').addEventListener('click', function(e) {
+            const start = document.getElementById('origin').value;
+            const end = document.getElementById('destination').value;
+
             calculateRoute(start, end);
-            
-            event.stopPropagation();
-            return false;
+
+            e.preventDefault();
         });
-        
+
         const pymChild = new pym.Child({ polling: 100 });
     </script>
     <script async defer src="https://maps.googleapis.com/maps/api/js?v=3.exp&amp;libraries=geometry,places&key=AIzaSyCYTUE0hvNPcioxBbCGMBwVNJzUjswdou0&callback=initialize"></script>
